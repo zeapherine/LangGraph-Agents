@@ -55,7 +55,7 @@ text_splitter = RecursiveCharacterTextSplitter(
 
 pages_split = text_splitter.split_documents(pages) # We now apply this to our pages
 
-persist_directory = r"C:\Vaibhav\LangGraph_Book\LangGraphCourse\Agents"
+persist_directory = os.path.join(os.path.dirname(__file__))
 collection_name = "stock_market"
 
 # If our collection does not exist in the directory, we create using the os command
