@@ -6,41 +6,36 @@ from langchain_core.tools import tool
 from langgraph.graph.message import add_messages
 from langgraph.graph import StateGraph, END
 from langgraph.prebuilt import ToolNode
+import os
 
 load_dotenv()
 
-# This is the global variable to store document content
-document_content = ""
-
 class AgentState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
-
+    document_content: str
 
 @tool
-def update(content: str) -> str:
+def update(state: AgentState, content: str) -> AgentState:
     """Updates the document with the provided content."""
-    global document_content
-    document_content = content
-    return f"Document has been updated successfully! The current content is:\n{document_content}"
-
+    state["document_content"] = content
+    return state
 
 @tool
-def save(filename: str) -> str:
+def save(state: AgentState, filename: str) -> str:
     """Save the current document to a text file and finish the process.
     
     Args:
         filename: Name for the text file.
     """
 
-    global document_content
-
+    content = state.get("document_content", "")
     if not filename.endswith('.txt'):
         filename = f"{filename}.txt"
 
 
     try:
         with open(filename, 'w') as file:
-            file.write(document_content)
+            file.write(content)
         print(f"\n💾 Document has been saved to: {filename}")
         return f"Document has been saved successfully to '{filename}'."
     
@@ -50,7 +45,11 @@ def save(filename: str) -> str:
 
 tools = [update, save]
 
-model = ChatOpenAI(model="gpt-4o").bind_tools(tools)
+model = ChatOpenAI(
+    model="llama3-70b-8192",
+    api_key=os.getenv("GROQ_API_KEY"),
+    base_url="https://api.groq.com/openai/v1"
+).bind_tools(tools)
 
 def our_agent(state: AgentState) -> AgentState:
     system_prompt = SystemMessage(content=f"""
@@ -60,7 +59,7 @@ def our_agent(state: AgentState) -> AgentState:
     - If the user wants to save and finish, you need to use the 'save' tool.
     - Make sure to always show the current document state after modifications.
     
-    The current document content is:{document_content}
+    The current document content is:{state.get('document_content', '')}
     """)
 
     if not state["messages"]:
@@ -135,7 +134,7 @@ app = graph.compile()
 def run_document_agent():
     print("\n ===== DRAFTER =====")
     
-    state = {"messages": []}
+    state = {"messages": [], "document_content": ""}
     
     for step in app.stream(state, stream_mode="values"):
         if "messages" in step:
