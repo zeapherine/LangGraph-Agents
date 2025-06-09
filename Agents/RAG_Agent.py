@@ -1,3 +1,6 @@
+import os
+# netspek: Set TOKENIZERS_PARALLELISM to false to suppress HuggingFace tokenizers parallelism warning
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 from dotenv import load_dotenv
 import os
 from langgraph.graph import StateGraph, END
@@ -5,7 +8,7 @@ from typing import TypedDict, Annotated, Sequence
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, ToolMessage
 from operator import add as add_messages
 from langchain_openai import ChatOpenAI
-from langchain_openai import OpenAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings  # netspek: Updated import as per deprecation warning, use new langchain-huggingface package
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
@@ -14,15 +17,19 @@ from langchain_core.tools import tool
 load_dotenv()
 
 llm = ChatOpenAI(
-    model="gpt-4o", temperature = 0) # I want to minimize hallucination - temperature = 0 makes the model output more deterministic 
+    model="llama3-70b-8192",
+    api_key=os.getenv("GROQ_API_KEY"),
+    base_url="https://api.groq.com/openai/v1",
+    temperature=0
+) # I want to minimize hallucination - temperature = 0 makes the model output more deterministic 
 
-# Our Embedding Model - has to also be compatible with the LLM
-embeddings = OpenAIEmbeddings(
-    model="text-embedding-3-small",
+# netspek: Use HuggingFaceEmbeddings with a sentence-transformers model (local, free embeddings)
+embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
 )
 
 
-pdf_path = "Stock_Market_Performance_2024.pdf"
+pdf_path = "Agents/Stock_Market_Performance_2024.pdf"  # netspek: Updated to correct relative path for PDF file
 
 
 # Safety measure I have put for debugging purposes :)
